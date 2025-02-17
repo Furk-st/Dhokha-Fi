@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wi-Fi Hacker Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #121212;
+            color: #ffffff;
+            text-align: center;
+        }
+        h1 {
+            color: #ffcc00;
+        }
+        button {
+            background-color: #ffcc00;
+            color: black;
+            padding: 10px 20px;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+            border-radius: 5px;
+        }
+        button:hover {
+            background-color: #ffdd44;
+        }
+        .container {
+            width: 80%;
+            margin: auto;
+        }
+        table {
+            width: 100%;
+            margin-top: 20px;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ffcc00;
+            padding: 10px;
+            text-align: center;
+        }
+        th {
+            background-color: #333;
+        }
+        .log-box {
+            background: #222;
+            padding: 10px;
+            height: 150px;
+            overflow-y: auto;
+            margin-top: 20px;
+            border-radius: 5px;
+            border: 1px solid #ffcc00;
+            text-align: left;
+            font-size: 14px;
+        }
+        .password-box {
+            font-size: 20px;
+            font-weight: bold;
+            margin-top: 20px;
+            color: #ff5733;
+        }
+        .loader {
+            display: none;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #ffcc00;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+    <script>
+        function scanNetworks() {
+            document.getElementById("loader").style.display = "block";
+            document.getElementById("logs").innerHTML += "[*] Scanning Wi-Fi Networks...<br>";
+
+            fetch('/scan')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById("loader").style.display = "none";
+                    document.getElementById("logs").innerHTML += "[+] Scan Complete!<br>";
+
+                    let networksTable = document.getElementById("networks");
+                    networksTable.innerHTML = "<tr><th>SSID</th><th>BSSID</th><th>Signal</th><th>Channel</th><th>Action</th></tr>";
+
+                    data.forEach(network => {
+                        networksTable.innerHTML += `<tr>
+                            <td>${network.SSID}</td>
+                            <td>${network.BSSID}</td>
+                            <td>${network.Signal}</td>
+                            <td>${network.Channel}</td>
+                            <td>
+                                <button onclick="startCapture('${network.SSID}')">Capture Handshake</button>
+                                <button onclick="startEvilTwin('${network.SSID}', '${network.BSSID}')">Start Evil Twin</button>
+                            </td>
+                        </tr>`;
+                    });
+                });
+        }
+
+        function startCapture(ssid) {
+            document.getElementById("logs").innerHTML += "[*] Capturing handshake for " + ssid + "...<br>";
+
+            fetch('/capture', {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ "ssid": ssid })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById("logs").innerHTML += "[+] " + data.status + "<br>";
+            });
+        }
+
+        function startEvilTwin(ssid, bssid) {
+            document.getElementById("logs").innerHTML += "[*] Starting Evil Twin for " + ssid + "...<br>";
+
+            fetch('/start_attack', {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ "ssid": ssid, "bssid": bssid, "gateway_mac": "11:22:33:44:55:66" })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById("logs").innerHTML += "[+] " + data.status + "<br>";
+            });
+        }
+
+        function checkPassword() {
+            fetch('/get_password')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.wifi_password !== "Not found yet.") {
+                        document.getElementById("wifi_password").innerText = "Captured Password: " + data.wifi_password;
+                        document.getElementById("logs").innerHTML += "[+] Password Obtained!<br>";
+                    } else {
+                        document.getElementById("logs").innerHTML += "[-] No password found yet. Waiting...<br>";
+                    }
+                });
+        }
+
+        function stopAttack() {
+            fetch('/stop_attack', { method: "POST" })
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById("logs").innerHTML += "[!] " + data.status + "<br>";
+                });
+        }
+    </script>
+</head>
+<body>
+
+    <h1>Wi-Fi Hacker Dashboard</h1>
+    
+    <div class="container">
+        <button onclick="scanNetworks()">🔍 Scan Wi-Fi Networks</button>
+        <button onclick="stopAttack()">🛑 Stop Attack</button>
+        <button onclick="checkPassword()">🔑 Get Captured Password</button>
+
+        <div class="loader" id="loader"></div>
+
+        <table id="networks">
+            <tr><th>SSID</th><th>BSSID</th><th>Signal</th><th>Channel</th><th>Action</th></tr>
+        </table>
+
+        <div class="log-box" id="logs">
+            <p>[*] Logs will appear here...</p>
+        </div>
+
+        <div class="password-box" id="wifi_password">
+            Captured Password: Not Found
+        </div>
+    </div>
+
+</body>
+</html>

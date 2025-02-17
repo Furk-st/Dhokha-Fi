@@ -1,0 +1,5 @@
+# Python Dependencies
+flask
+flask-socketio
+scapy
+pycryptodome
